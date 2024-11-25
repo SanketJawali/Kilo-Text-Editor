@@ -8,6 +8,11 @@
 #include <ctype.h>
 
 
+/*** defines ***/
+
+#define CTRL_KEY(k) ((k) & 0x1f)
+
+
 /*** Data ***/
 
 struct termios orig_termios;
@@ -60,7 +65,8 @@ int main() {
         else {
             printf("%d ('%c')\r\n", c, c);    // Printing the ASCII value and the character
         }
-        if (c == 'q') break;
+
+        if (c == CTRL_KEY('q')) break;
     }   
     return 0;
 }
