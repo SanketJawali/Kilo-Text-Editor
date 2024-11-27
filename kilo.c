@@ -47,6 +47,33 @@ void enableRawMode() {
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("Error while setting the terminal attributes. \nenableRawMode > tcsetattr");  // Set the terminal attributes
 }
 
+char editorReadKey() {
+    // Function to read the keypresses and return them
+    int nread;
+    char c;
+    while ((nread = read(STDIN_FILENO,  &c, 1)) != 1) {
+        if (nread == -1 && errorno != EAGAIN) die("Error while reading.") 
+    }
+    return c;
+}
+
+
+/*** Input ***/
+
+void editorProcessKeypress() {
+    // Function to read and process the keypresses
+    // Read keypresses
+    char c = editorReadKey();
+
+    // Process the keypresses
+    switch (c) {
+        case CTRL_KEY('q'):
+            // Exit if ctrl+q is pressed
+            exit(0);
+            break;
+    }
+}
+
 
 /*** Init ***/
 
@@ -56,17 +83,8 @@ int main() {
     
     char c;
     while (1) {
-        char c = '\0';
-        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("Error while reading input");
-        
-        if (iscntrl(c)) {
-            printf("%d\r\n", c);    // Printing the ASCII value
-        } 
-        else {
-            printf("%d ('%c')\r\n", c, c);    // Printing the ASCII value and the character
-        }
-
-        if (c == CTRL_KEY('q')) break;
+        // Take keypresses and process them
+        editorProcessKeypress();
     }   
     return 0;
 }
