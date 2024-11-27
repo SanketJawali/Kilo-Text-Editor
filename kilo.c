@@ -21,17 +21,22 @@ struct termios orig_termios;
 /*** Terminal ***/
 
 void die(const char *s) {
-  // Function to kill the current program
-  // Print an error message.
-  perror(s);
+    // Function to kill the current program
+    
+    // Clear the scren and reposition the cursor before exiting
+    write(STDOUT_FILENO, "\x1b[2J", 4);  
+    write(STDOUT_FILENO, "\x1b[H", 3);
 
-  // Exit with return status 1
-  exit(1);
+    // Print an error message.
+    perror(s);
+
+    // Exit with return status 1
+    exit(1);
 }
 
 
 void disableRawMode() {
-   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) die("Error while disabling the raw mode. \ndisableRawMode > tcsetattr");   // Set the terminal attributes to the original
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) die("Error while disabling the raw mode. \ndisableRawMode > tcsetattr");   // Set the terminal attributes to the original
 }
 
 
@@ -52,9 +57,16 @@ char editorReadKey() {
     int nread;
     char c;
     while ((nread = read(STDIN_FILENO,  &c, 1)) != 1) {
-        if (nread == -1 && errorno != EAGAIN) die("Error while reading.") 
+        if (nread == -1 && errno != EAGAIN) die("Error while reading keyboard input."); 
     }
     return c;
+}
+
+
+/*** output ***/
+void editorRefreshScreen() {
+    // Clear the screen
+    write(STDOUT_FILENO, "\x1b[2J", 4);
 }
 
 
@@ -68,6 +80,10 @@ void editorProcessKeypress() {
     // Process the keypresses
     switch (c) {
         case CTRL_KEY('q'):
+            // Clear the screen and reset the cursor position
+            write(STDOUT_FILENO, "\x1b[2J", 4);  
+            write(STDOUT_FILENO, "\x1b[H", 3);
+
             // Exit if ctrl+q is pressed
             exit(0);
             break;
@@ -81,8 +97,9 @@ int main() {
     // Enable RAW Mode
     enableRawMode();
     
-    char c;
     while (1) {
+        // Clear the screen
+        editorRefreshScreen();
         // Take keypresses and process them
         editorProcessKeypress();
     }   
