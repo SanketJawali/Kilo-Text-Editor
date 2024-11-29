@@ -3,8 +3,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
-#include <termios.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
+#include <termios.h>
 #include <ctype.h>
 
 
@@ -15,7 +16,13 @@
 
 /*** Data ***/
 
-struct termios orig_termios;
+struct editorConfig {
+    int screenrows;
+    int screencols;
+    struct termios orig_termios;
+};
+
+struct editorConfig E;
 
 
 /*** Terminal ***/
@@ -34,16 +41,15 @@ void die(const char *s) {
     exit(1);
 }
 
-
 void disableRawMode() {
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) die("Error while disabling the raw mode. \ndisableRawMode > tcsetattr");   // Set the terminal attributes to the original
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1) die("Error while disabling the raw mode. \ndisableRawMode > tcsetattr");   // Set the terminal attributes to the original
 }
 
-
 void enableRawMode() {  
-    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("Error while readint terminal attributes. \nenableRawMode > tcgetattr");  // Store the current terminal attributes in orig_termios
+    if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1) die("Error while readint terminal attributes. \nenableRawMode > tcgetattr");  // Store the current terminal attributes in orig_termios
     atexit(disableRawMode);  // At exit disable the Raw mode
-    struct termios raw = orig_termios;  // Store a copy of original terminal attributes in raw struct
+    struct termios raw = E.orig_termios;  // Store a copy of original terminal attributes in raw struct
+
     // Turning off some of the input and output flags to enabld the Raw mode in the terminal
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_oflag &= ~(OPOST);
@@ -62,13 +68,25 @@ char editorReadKey() {
     return c;
 }
 
+int getWindowSize(int *rows, int *cols) {
+    struct winsize ws;
+
+    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, %ws) == -1 || ws.ws_col == 0) {
+        return -1;
+    }
+    else {
+        *cols = ws.ws_col;
+        *rows = ws.ws_row;
+        return 0;
+    }
+}
 
 /*** output ***/
 
 void editorDrawRows() {
     int y;
-    for (y = 0; y < 24; y++) {
-        write(STDOUT_FILENO, "~\r\n", 3);
+    for (y = 0; y < E.screenrows; y++) {
+        write(STDOUT_FILENO, "~\r\n", 3);  // Draw ~
     }
 }
 
@@ -77,7 +95,7 @@ void editorRefreshScreen() {
     write(STDOUT_FILENO, "\x1b[2J", 4);
     write(STDOUT_FILENO, "\x1b[H", 3);
 
-    // Draw the ~
+    // Draw the ~ and reset the cursor position
     editorDrawRows();
     write(STDOUT_FILENO, "\x1b[H", 3);
 }
@@ -106,9 +124,13 @@ void editorProcessKeypress() {
 
 /*** Init ***/
 
+void initEditor() {
+    if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("Error while getting terminal dimensions.");  // Get terminal window dimensions
+}
+
 int main() {
-    // Enable RAW Mode
-    enableRawMode();
+    enableRawMode();  // Enable Raw mode
+    initEditor();  // Get terminal window size
     
     while (1) {
         // Clear the screen
